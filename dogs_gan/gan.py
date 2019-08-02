@@ -1,12 +1,26 @@
+import glob
+import numpy as np
+from PIL import Image
+from keras.layers import Input, Dense, Reshape, Flatten, Dropout
+from keras.layers import BatchNormalization, Activation, ZeroPadding2D
+from keras.layers.advanced_activations import LeakyReLU
+from keras.layers.convolutional import UpSampling2D, Conv2D
+from keras.models import Sequential, Model
+from keras.optimizers import Adam
+
+
 class GAN():
-    def __init__(self):
-        self.img_rows = 64
-        self.img_cols = 64
+    def __init__(self, image_path):
+        self.image_path = image_path
+        self.img_rows = 512
+        self.img_cols = 512
         self.channels = 3
         self.img_shape = (self.img_rows, self.img_cols, self.channels)
         self.latent_dim = 100
 
         optimizer = Adam(lr=0.0001)
+
+        self._load_images()
 
         self.discriminator = self.build_discriminator()
         self.discriminator.compile(loss='binary_crossentropy',
@@ -30,7 +44,24 @@ class GAN():
         self.combined = Model(z, validity)
         self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
 
-def build_discriminator(self):
+
+    def _load_images(self):
+        if self.image_path[-1] != '/':
+            self.image_path += '/'
+        image_files = glob.glob(self.image_path+'*')
+        
+        X = np.zeros(shape=(len(image_files), self.img_rows, self.img_cols, self.channels))        
+
+        for idx, image_file in enumerate(image_files):
+            im = Image.open(image_file)
+            im = np.asarray(im)
+            #print(im.shape)
+            X[idx, :, :, :] = im
+
+        self.X = X            
+
+
+    def build_discriminator(self):
         model = Sequential()
 
         model.add(Flatten(input_shape=self.img_shape))
@@ -69,10 +100,10 @@ def build_discriminator(self):
 
         return Model(noise, img)
 
-def train(self, epochs, batch_size=128, sample_interval=50):
+    def train(self, epochs, batch_size=128, sample_interval=50):
 
         # Load the dataset
-        (X_train, _), (_, _) = mnist.load_data()
+        X_train = self.X
 
         # Rescale -1 to 1
         X_train = X_train / 127.5 - 1.
@@ -135,3 +166,8 @@ def train(self, epochs, batch_size=128, sample_interval=50):
         fig.savefig("images/%d.png" % epoch)
         plt.close()
 
+
+if __name__ == '__main__':
+    image_path = '/Users/bruno/Documents/git/burncam/data/images_gen/'
+    gan = GAN(image_path = image_path)
+    gan.train(epochs=30000, batch_size=32, sample_interval=200)
